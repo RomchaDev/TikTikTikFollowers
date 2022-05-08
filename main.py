@@ -117,7 +117,7 @@ async def add_user(message: types.Message):
         update_delays(message.from_user.id)
 
     prev.append(parts[1])
-    users[message.from_user.id] = {"accounts": prev}
+    users[str(message.from_user.id)] = {"accounts": prev}
 
     update_users(message.from_user.id)
     await reply(message, "Account successfully added")
@@ -178,13 +178,17 @@ async def list_accounts(message: types.Message):
         return
 
     repl = ""
-    for pair in users[str(tg_user_id)]["accounts"]:
-        username = pair.split(' ')[0]
-        password = pair.split(' ')[1]
-        f = followers_amount(username)
-        repl += username + ' ' + password + " - " + str(f) + '\n'
 
-    await reply(message, repl)
+    try:
+        for pair in users[str(tg_user_id)]["accounts"]:
+            username = pair.split(' ')[0]
+            password = pair.split(' ')[1]
+            f = followers_amount(username)
+            repl += username + ' ' + password + " - " + str(f) + '\n'
+
+        await reply(message, repl)
+    except:
+        await reply(message, "No accounts found")
 
 
 def followers_amount(username):
@@ -212,7 +216,7 @@ def update_delays(tg_user_id):
 
 def update_users(tg_user_id):
     print(users)
-    write_to_file("users/" + str(tg_user_id) + ".txt", users[tg_user_id]["accounts"])
+    write_to_file("users/" + str(tg_user_id) + ".txt", users[str(tg_user_id)]["accounts"])
 
 
 def start_tracking():

@@ -6,20 +6,19 @@ import time
 
 from TikTokApi import TikTokApi
 from aiogram import Bot, Dispatcher, executor, types
-import logging
 
 API_TOKEN = '5322171250:AAGm8vFQnhomWVCm7VKU6QxLiEVbV8C-bTQ'
 HELP_MESSAGE = "Welcome to TikTokTracker bot! This bot allows you to track followers amount in your TikTok account\n" \
                "\nTo add account to track use `/add <username> <password>`\n" \
                "\nTo delete account from tracking list use `/delete <username> <password>`\n" \
                "\nTo get list of your accounts with subscribers use `/list_accounts`\n" \
-               "\nTo change the delay in seconds between server calls (1800 by default) use `/delay_seconds <seconds>`" \
+               "\nTo change the delay in seconds between server calls (30 by default) use `/delay_seconds <seconds>`" \
                "\nTo get your user_id use `/my_user_id`\n\nBot won't work if your user_id is not in a magic list.\n" \
                "\nIf you are not in magic list contact @itproger008"
 
 WRONG_INPUT_MESSAGE = "Your query is not properly formatted"
 ACCOUNT_NOT_EXISTS_MESSAGE = "This account does not exist"
-DEFAULT_DELAY = 3
+DEFAULT_DELAY = 30
 
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher(bot)
@@ -103,6 +102,10 @@ async def add_user(message: types.Message):
         return
 
     username = parts[1].split(' ')[0]
+    if len(parts[1].split(' ')) != 2:
+        await reply(message, WRONG_INPUT_MESSAGE)
+        return
+
     if not exists(username):
         await reply(message, ACCOUNT_NOT_EXISTS_MESSAGE)
         return
@@ -183,8 +186,14 @@ async def list_accounts(message: types.Message):
         for pair in users[str(tg_user_id)]["accounts"]:
             username = pair.split(' ')[0]
             password = pair.split(' ')[1]
-            f = followers_amount(username)
-            repl += username + ' ' + password + " - " + str(f) + '\n'
+            try:
+                f = followers_amount(username)
+                repl += username + ' ' + password + " - " + str(f) + '\n'
+                repl += "tiktok.com/@" + username + "\n\n"
+            except:
+                repl = "Check account " + username + "\ntiktok.com/@" + username
+                print("Deleting account " + pair)
+                users[str(tg_user_id)]["accounts"].remove(pair)
 
         await reply(message, repl)
     except:
@@ -193,10 +202,12 @@ async def list_accounts(message: types.Message):
 
 def followers_amount(username):
     user = tiktok.user(username)
+    print("Checking " + username)
     return int(user.info_full()["stats"]["followerCount"])
 
 
-def check_one_thousand(username):
+def check_one_thousand(pair):
+    username = pair.split(' ')[0]
     followers = followers_amount(username)
     return followers >= 1000
 
@@ -227,15 +238,22 @@ def start_tracking():
         for k in list(delays.keys()):
             if cur % int(delays[k]) == 0:
                 for pair in users[str(k)]["accounts"]:
-                    username = pair.split(' ')[0]
-                    if check_one_thousand(username):
+                    is_thousand_reached = False
+                    try:
+                        is_thousand_reached = check_one_thousand(pair)
+                    except:
+                        is_thousand_reached = False
+                        print("Problem")
+
+                    if is_thousand_reached:
                         new_bot = Bot(API_TOKEN)
                         asyncio.run(
                             new_bot.send_message(k, "Account `" + pair + "` reached 1K followers"))
-                        asyncio.run(new_bot.session.close())
-                        delays.pop(k)
+                        asyncio.run(new_bot.session.close())  # Falls down. )= sam daun chmo obossanoe)))))))))))
+                        # delays.pop(k)
                         try:
                             users[k]["accounts"].remove(pair)
+                            update_users(k)
                         except ValueError:
                             print(users)
                             print("Wasn't added so was't removed")
